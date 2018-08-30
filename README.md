@@ -2,6 +2,10 @@
 
 This repository contains samples for the Google Dynamic Ad Insertion API.
 
+## Samples
+
+* [Simple](simple)
+
 ### Announcements and Updates
 
 For API and client library updates and news, please follow our [Google+ Ads
