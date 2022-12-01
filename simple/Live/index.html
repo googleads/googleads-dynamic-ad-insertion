@@ -54,9 +54,9 @@ function initPlayer() {
  */
 function onStreamCreated(responseText) {
   let json = JSON.parse(responseText);
-  let masterPlaylist = json.hls_master_playlist;
+  let mainPlaylist = json.hls_master_playlist;
   verificationUrl = json.media_verification_url;
-  if (!masterPlaylist) {
+  if (!mainPlaylist) {
     console.error("HLS playlist not found!");
     return;
   } else if (!verificationUrl) {
@@ -84,7 +84,7 @@ function onStreamCreated(responseText) {
   });
 
   // Load and play the playlist.
-  hls.loadSource(masterPlaylist);
+  hls.loadSource(mainPlaylist);
   hls.attachMedia(videoElement);
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
     console.log('Video Play');

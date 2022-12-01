@@ -4,7 +4,8 @@ This repository contains samples for the Google Dynamic Ad Insertion API.
 
 ## Samples
 
-* [Simple](simple)
+* [Simple VOD Sample](simple/VOD)
+* [Simple Live Sample](simple/Live)
 
 ### Announcements and Updates
 

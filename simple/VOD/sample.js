@@ -1,4 +1,4 @@
-<!-- Copyright 2018 Google LLC
+<!-- Copyright 2022 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,16 +11,16 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. -->
-<HTML>
-  <head>
+<html>
+  <head><!DOCTYPE html><html>
     <title>DAI API Sample Player</title>
     <script src="https://cdn.jsdelivr.net/hls.js/latest/hls.min.js"></script>
     <script src="./sample.js"></script>
   </head>
-  <BODY onLoad='initPlayer()'>
-    <H2>Welcome to the DAI API!</H2>
+  <body>
+    <h2>DAI API sample app for live streams</h2>
     <div id="videoContainer">
-      <video id="video"></video>
+      <video></video>
     </div>
-  </BODY>
-</HTML>
+  </body>
+</html>
