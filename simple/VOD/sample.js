@@ -27,7 +27,7 @@ let adBreaks = [];
  */
 function initPlayer() {
   const API_URL_BASE = 'https://dai.google.com/ondemand/v1/hls/content/';
-  const CMSID = 19463;
+  const CMSID = '2528370';
   const VID = 'tears-of-steel';
   let request = new XMLHttpRequest();
   let apiUrl =  API_URL_BASE + CMSID + '/vid/' + VID + '/stream';
