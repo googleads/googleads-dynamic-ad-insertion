@@ -9,11 +9,10 @@ This repository contains samples for the Google Dynamic Ad Insertion API.
 
 ### Announcements and Updates
 
-For API and client library updates and news, please follow our [Google+ Ads
-Developers page](https://plus.google.com/+GoogleAdsDevelopers/posts) and our
+For API and client library updates and news, please follow our
 [Google Ads Developers blog](http://googleadsdeveloper.blogspot.com/)
 
-Copyright 2018 Google LLC
+Copyright 2023 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
