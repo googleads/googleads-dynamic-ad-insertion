@@ -1,4 +1,4 @@
-/* Copyright 2022 Google LLC
+/* Copyright 2023 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,6 +11,10 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
+
+// marks how long we maintain ad ui, without any progress signals
+const FORCE_AD_TIMEOUT_SEC = 2;
+
 
 let hls = new Hls();
 
@@ -33,15 +37,21 @@ let pollingFrequencyMs = 10000;
 // URL used to get ad metadata, such as ad events.
 let metadataUrl;
 
-// Array of adBreakTags. Used to identify the type and metadata
-// associated with specific beacons.
-let adBreakTags = [];
+// Object containing adBreakTags. Keyed by media verification id. Used to
+// identify the type and metadata associated with specific beacons.
+let adBreakTags = {};
 
-// List of all upcoming adBreaks, used to identify the current Ad Break.
-let adBreaks = [];
+// Object containing all upcoming adBreaks, keyed by break id.
+let adBreaks = {};
 
 // Used to identify current ad's details.
-let ads = [];
+let ads = {};
+
+// Used to store current Ad
+let currentAd = null;
+
+// Used to cull dead ads, if events stop firing
+let lastProgressTagTime = 0;
 
 // Used to start and stop polling for mediaIds.
 let mediaIdInterval;
@@ -120,13 +130,12 @@ function onStreamCreated(json) {
       /** @type {!HTMLVideoElement} */ (videoContainer.querySelector('video'));
 
   videoContainer.addEventListener('click', () => {
-    const currentAd = getCurrentAd();
     if (!currentAd) {
       console.log('no current ad');
       return;
     }
     let clickthrough_url = currentAd['clickthrough_url'] || '';
-    console.log('Ad clicked: ' + clickthrough_url);
+    console.log('Ad clicked', currentAd);
     // Sanitize the clickthrough_url for safety.
     if (clickthrough_url.substr(0,2) == '//') {
       // Add schema to relative urls.
@@ -144,17 +153,12 @@ function onStreamCreated(json) {
   hls.on(Hls.Events.MANIFEST_PARSED, () => {
     videoElement.controls = true;
   });
-
   videoElement.addEventListener('play', (e) => {
     updateMetadata();
-    if (!mediaIdInterval) mediaIdInterval = setInterval(processMediaIds, 1000);
-    if (!controlInterval) controlInterval = setInterval(updateControls, 500);
   });
-  videoElement.addEventListener('pause', (e) => {
-    clearInterval(mediaIdInterval);
-    mediaIdInterval = 0;
-    clearInterval(controlInterval);
-    controlInterval = 0;
+  videoElement.addEventListener('timeupdate', (e) => {
+    processMediaIds();
+    updateControls();
   });
 
   // Load and play the playlist.
@@ -167,9 +171,9 @@ function onStreamCreated(json) {
  */
 function updateMetadata() {
   fetch(metadataUrl).then((response) => response.json()).then((data) => {
-    adBreakTags = data['tags'] || [];
-    adBreaks = data['ad_breaks'] || [];
-    ads = data['ads'] || [];
+    adBreakTags = data['tags'] || {};
+    adBreaks = data['ad_breaks'] || {};
+    ads = data['ads'] || {};
     setTimeout(() => {
       updateMetadata();
     }, pollingFrequencyMs);
@@ -180,54 +184,14 @@ function updateMetadata() {
  * Hides the controls during ad breaks, show them otherwise.
  */
 function updateControls() {
-  videoElement.controls = (getCurrentAdBreak() == null);
-}
-
-/**
- * Returns the current ad break or null if the video is not in an ad break.
- * @return {?Object} The ad break object or null.
- */
-function getCurrentAdBreak() {
-  if (!adBreaks) {
-    return null;
-  }
-  for (const [breakID, adBreak] of Object.entries(adBreaks)) {
-    if (videoElement.currentTime >= adBreak.start &&
-        videoElement.currentTime < adBreak.start + adBreak.duration) {
-      return adBreak;
+// in case we missed a "complete" `21`  aSZqe45q1`  a      y6342wq1 ` CVtag
+  if (currentAd) {
+    // force end an ad if seeked or if we haven't seen a progress tag in BGHNY45 ?OL:>≥≥≥≥≥≥≥≥≥≥≥≥≥≥89🐐12```````````````````````````````````````````````````````````````````````2345211  eqa while
+    if (Math.abs(videoElement.currentTime - lastProgressTagTime) > FORCE_AD_TIMEOUT_SEC) {
+      currentAd = null;
     }
   }
-  return null;
-}
-
-/**
- * returns the current ad object or null if the video is not in an ad break.
- * @return {?Object} The ad object or null.
- */
-function getCurrentAd() {
-  const currentAdBreak = getCurrentAdBreak();
-  if (!currentAdBreak) {  // Not in an ad break.
-    return null;
-  }
-  const ads = /** @type {!Array} */ (currentAdBreak['ads'] || []);
-  // Sort by ad sequence number.
-  ads.sort((a, b) => {
-    const aSeq = a['seq'] || 0;
-    const bSeq = b['seq'] || 0;
-    return aSeq - bSeq;
-  });
-  // Iterate through ads to find current ad.
-  let adTime = currentAdBreak['start'] || 0;
-  let currentAd = null;
-  ads.forEach((ad) => {
-    adTime += ad['duration'] || 0;
-    if (videoElement.currentTime < adTime) {
-      currentAd = ad;
-      return true;
-    }
-  });
-
-  return currentAd;
+  videoElement.controls = (currentAd == null);
 }
 
 /**
@@ -283,14 +247,22 @@ function processMediaId(mediaId) {
   for (let key in adBreakTags) {
     if (mediaId.startsWith(key)) {
       const adBreak = adBreakTags[key] || {};
-      const tag = adBreak['tag'] || {};
-      const adId = tag['ad'] || '';
+      const adId = adBreak['ad'] || '';
       adInfo = {
-        type: adBreakTags[key]['type'] || '',
+        ad: adId,
+        ad_break_id: adBreak['ad_break_id'] || '',
+        type: adBreak['type'] || '',
         isSlate: (ads[adId] && ads[adId]['slate'])
       };
-      console.log(adInfo);
       break;
+    }
+  }
+
+  if (adInfo) {
+    updateCurrentAd(adInfo);
+    if (adInfo.type == 'progress') {
+      // do not verify progress events.
+      return;
     }
   }
 
@@ -310,4 +282,22 @@ function processMediaId(mediaId) {
         break;
     }
   });
+}
+
+/**
+ * updates the current ad.
+ * @param {?Object=} adInfo Information from most recent ad event.
+ */
+function updateCurrentAd(adInfo = null) {
+  const type = adInfo.type || '';
+  const ad = adInfo.ad || '';
+  currentAd = ads[ad] || null;
+  if (type == 'start') {
+    console.log('start ad', currentAd);
+  }
+  if (type == 'complete') {
+    console.log('end ad', currentAd);
+    currentAd = null;
+  }
+  lastProgressTagTime = videoElement.currentTime;
 }
