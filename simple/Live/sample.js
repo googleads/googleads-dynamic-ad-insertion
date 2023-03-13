@@ -59,6 +59,8 @@ let mediaIdInterval;
 // Used to start and stop polling for interface updates.
 let controlInterval;
 
+// Used to track which id/timestamp pairs already exist in the queue
+const mediaIdsSet = new Set();
 
 window.addEventListener('DOMContentLoaded', () => {
   const API_URL_BASE = 'https://dai.google.com/linear/v1/hls/event/';
@@ -83,6 +85,9 @@ window.addEventListener('DOMContentLoaded', () => {
   fetch(apiUrl, {
     method: 'POST',
     cache: 'no-cache',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+    },
     body: new URLSearchParams(data).toString()  // x-www-form-urlencoded
   })
       .then((response) => {
@@ -212,9 +217,14 @@ function parseMetadata(event, data = null) {
         sampleString.indexOf('google_'), sampleString.length);
 
     // Keep track of mediaIds and timestamps in a queue.
-    mediaIdsQueue.push({mediaId: mediaId, timestamp: pts, processed: false});
+    const newID3 = new URLSearchParams({mediaId: mediaId, timestamp: pts}).toString();
+    if (!mediaIdsSet.has(newID3)) {
+      mediaIdsSet.add(newID3);
+      mediaIdsQueue.push({mediaId: mediaId, timestamp: pts, processed: false});
+    }
   });
 }
+
 
 /**
  * Checks for newly reached timed metadata and sends it for processing.
